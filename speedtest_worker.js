@@ -12,6 +12,7 @@ var ulStatus = ""; // upload speed in megabit/s with 2 decimal digits
 var pingStatus = ""; // ping in milliseconds with 2 decimal digits
 var jitterStatus = ""; // jitter in milliseconds with 2 decimal digits
 var clientIp = ""; // client's IP address as reported by getIP.php
+var ispInfo = ""; // ISP Name
 var dlProgress = 0; //progress of download test 0-1
 var ulProgress = 0; //progress of upload test 0-1
 var pingProgress = 0; //progress of ping+jitter test 0-1
@@ -98,6 +99,7 @@ this.addEventListener("message", function(e) {
 				ulStatus: ulStatus,
 				pingStatus: pingStatus,
 				clientIp: clientIp,
+				ispInfo: ispInfo,
 				jitterStatus: jitterStatus,
 				dlProgress: dlProgress,
 				ulProgress: ulProgress,
@@ -258,6 +260,7 @@ this.addEventListener("message", function(e) {
 		pingStatus = "";
 		jitterStatus = "";
         clientIp = "";
+		ispInfo = "";
 		dlProgress = 0;
 		ulProgress = 0;
 		pingProgress = 0;
@@ -299,14 +302,37 @@ function getIp(done) {
 	xhr = new XMLHttpRequest();
 	xhr.onload = function() {
 		tlog("IP: " + xhr.responseText + ", took " + (new Date().getTime() - startT) + "ms");
+
+		function splitClientInfo(infoIn) {
+			var params = {clientIp: '', ispInfo: ''};
+			if ( infoIn.includes('-') ) {
+				var splits = infoIn.split(' - ');
+				params.clientIp = splits[0].trim();
+				params.ispInfo = splits[1].trim();
+			} else {
+				params.clientIp = infoIn;
+				params.ispInfo = "";
+			}
+
+			return params
+		}		
+
 		try {
 			var data = JSON.parse(xhr.responseText);
-			clientIp = data.processedString;
-			ispInfo = data.rawIspInfo;
+			if ( data.rawIspInfo != null ) {
+					clientIp = splitClientInfo(data.processedString).clientIp;
+					ispInfo = data.rawIspInfo;
+			} else {
+					var splitInfo = splitClientInfo(data.processedString)
+					clientIp = splitInfo.clientIp;
+					ispInfo = splitInfo.ispInfo
+			}
 		} catch (e) {
-			clientIp = xhr.responseText;
-			ispInfo = "";
+			var splitInfo = splitClientInfo(xhr.responseText)
+			clientIp = splitInfo.clientIp;
+			ispInfo = splitInfo.ispInfo
 		}
+
 		done();
 	};
 	xhr.onerror = function() {
